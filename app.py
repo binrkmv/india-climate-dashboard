@@ -3,41 +3,48 @@ import pandas as pd
 import plotly.express as px
 import json
 import requests
-import gc
 
 # Set page configuration to wide layout
 st.set_page_config(page_title="India Climate Dashboard", layout="wide")
 
 # ==============================================================================
-# 1. CLOUD URL CONFIGURATION 
+# 1. CLOUD URL CONFIGURATION (Dynamic Router Mapping)
 # ==============================================================================
-CSV_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_data_india_FINAL.zip"
 GEOJSON_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/india_2001_districtsbig.geojson"
 
+# Dictionary mapping specific eras to their direct download links on your release page
+ERA_DATA_URLS = {
+    "1952 - 1975": "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_1952_1975.csv",
+    "1976 - 1995": "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_1976_1995.csv",
+    "1996 - 2010": "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_1996_2010.csv",
+    "2011 - 2023": "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_2011_2023.csv"
+}
+
 # ==============================================================================
-# 2. MAX-CHUNK OPTIMIZED DATA LOADING
+# 2. DYNAMIC SIDEBAR CONFIGURATION (Part 1 - Era Assignment)
 # ==============================================================================
-@st.cache_data(show_spinner="Downloading & parsing raw climate matrix... Please hold.")
-def load_data():
-    # Strict column selection to minimize footprint
+st.sidebar.header("🗺️ Filter Options")
+
+# User selects the historical context block first
+selected_era = st.sidebar.selectbox("1. Select Climate Era", list(ERA_DATA_URLS.keys()), index=len(ERA_DATA_URLS)-1)
+chosen_csv_url = ERA_DATA_URLS[selected_era]
+
+# ==============================================================================
+# 3. MEMORY-SAFE DYNAMIC ASSET CACHING ENGINE
+# ==============================================================================
+@st.cache_data(show_spinner="Fetching localized climate era matrix... Please wait.")
+def load_era_data(url):
+    # Only pull columns required for map rendering to minimize memory allocation
     keep_cols = ['year', 'month', 'day', 'ST_NAME', 'DISTRICT', 
                  'temp_max', 'temp_min', 'temp_mean', 'rh_mean', 'wetbulb_mean', 'precip_total']
     
-    chunk_list = []
-    
-    # Process using a massive 10,000,000 row block size to minimize iteration overhead
-    for chunk in pd.read_csv(CSV_URL, compression='zip', usecols=keep_cols, chunksize=10000000):
-        chunk.dropna(subset=['DISTRICT'], inplace=True)
-        chunk_list.append(chunk)
-        del chunk  # Drop references immediately
-        gc.collect() # Force clear RAM
+    # Check if reading raw csv or zipped archive dynamically
+    if url.endswith('.zip'):
+        df = pd.read_csv(url, compression='zip', usecols=keep_cols)
+    else:
+        df = pd.read_csv(url, usecols=keep_cols)
         
-    # Combine chunks 
-    df = pd.concat(chunk_list, ignore_index=True)
-    del chunk_list
-    gc.collect()
-    
-    # Downcast date numeric values to save space
+    df.dropna(subset=['DISTRICT'], inplace=True)
     df['year'] = df['year'].astype(int)
     df['month'] = df['month'].astype(int)
     df['day'] = df['day'].astype(int)
@@ -48,40 +55,33 @@ def load_geojson():
     response = requests.get(GEOJSON_URL)
     return response.json()
 
-# Execute asset downloads safely
+# Execute dynamic streaming data pull
 try:
-    df = load_data()
+    df = load_era_data(chosen_csv_url)
     geojson_data = load_geojson()
 except Exception as e:
     st.error(f"Error loading remote cloud assets: {e}")
     st.stop()
 
 # ==============================================================================
-# 3. DASHBOARD HEADER
+# 4. SIDEBAR CONFIGURATION (Part 2 - Context Cascades)
 # ==============================================================================
-st.title("☀️ India Historical Climate & Weather Dashboard")
-st.write("---")
-
-# ==============================================================================
-# 4. LEFT SIDEBAR FILTERS
-# ==============================================================================
-st.sidebar.header("🗺️ Filter Options")
-
+# Filter date pickers are constrained specifically by the loaded dataset
 available_years = sorted(df['year'].unique())
-selected_year = st.sidebar.selectbox("Select Year", available_years, index=len(available_years)-1)
+selected_year = st.sidebar.selectbox("2. Select Year", available_years, index=len(available_years)-1)
 
 available_months = sorted(df['month'].unique())
-selected_month = st.sidebar.selectbox("Select Month", available_months)
+selected_month = st.sidebar.selectbox("3. Select Month", available_months)
 
 available_days = sorted(df['day'].unique())
-selected_day = st.sidebar.selectbox("Select Day", available_days)
+selected_day = st.sidebar.selectbox("4. Select Day", available_days)
 
 available_states = sorted(df['ST_NAME'].unique())
-selected_state = st.sidebar.selectbox("Select State", available_states)
+selected_state = st.sidebar.selectbox("5. Select State", available_states)
 
 state_filtered_df = df[df['ST_NAME'] == selected_state]
 available_districts = sorted(state_filtered_df['DISTRICT'].unique())
-selected_district = st.sidebar.selectbox("Select District Focus", ["All Districts"] + list(available_districts))
+selected_district = st.sidebar.selectbox("6. Select District Focus", ["All Districts"] + list(available_districts))
 
 # ==============================================================================
 # 5. DATA QUERY EXECUTION
@@ -102,7 +102,7 @@ else:
 # ==============================================================================
 map_column, right_panel_column = st.columns([4.2, 1])
 
-# --- RIGHT SIDE PANEL ---
+# --- RIGHT SIDE PANEL: Settings & Citations ---
 with right_panel_column:
     st.subheader("⚙️ Map Settings")
     metric_options = {
@@ -131,7 +131,7 @@ with right_panel_column:
     st.markdown("### ℹ️ Dashboard Info")
     st.markdown(
         """
-        **Created by:** [Binay Shankar](https://binayshankar.weebly.com/)
+        **Created by:** [Binay Shankar](binayshankar.weebly.com)
         
         **Data Sources:**
         * **Shapefile (Census 2001):** [Census of India](https://onlinemaps.surveyofindia.gov.in/)  
@@ -139,7 +139,7 @@ with right_panel_column:
         """
     )
 
-# --- LEFT PANEL: Widescreen Map ---
+# --- LEFT PANEL: Widescreen Map Visualization ---
 with map_column:
     st.subheader(f"🗺️ Geographic Heatmap: {selected_metric_label} ({selected_day}/{selected_month}/{selected_year})")
     
@@ -178,4 +178,4 @@ with map_column:
         
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.error("Cannot render map. Data empty for selected parameters.")
+        st.error("No map profile matching current selectors found.")
