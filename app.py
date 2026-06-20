@@ -15,7 +15,7 @@ st.set_page_config(page_title="India Climate Dashboard", layout="wide")
 CSV_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_data_india_FINAL.zip"
 
 # Direct download link to your map file in GitHub Releases
-GEOJSON_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/india_2001_districts.geojson"
+GEOJSON_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/india_2001_districtsbig.geojson"
 
 # ==============================================================================
 # 2. CACHE DATA LOADING (Optimized for Streamlit Cloud performance)
