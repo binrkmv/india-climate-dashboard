@@ -2,52 +2,84 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import json
-import os
+import requests
 
 # Set page configuration to wide layout
 st.set_page_config(page_title="India Climate Dashboard", layout="wide")
 
-# 1. PATH CONFIGURATION
-DATA_DIR = r"F:\OneDrive - Shiv Nadar Institution of Eminence\Heat and Firms\dashboard"
-CSV_PATH = os.path.join(DATA_DIR, "climate_data_india_FINAL.csv")
-GEOJSON_PATH = os.path.join(DATA_DIR, "india_2001_districts.geojson")
+# ==============================================================================
+# 1. CLOUD URL CONFIGURATION 
+# ==============================================================================
 
-# 2. CACHE DATA LOADING
-@st.cache_data
+# Direct download link to your ZIP file in GitHub Releases
+CSV_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_data_india_FINAL.zip"
+
+# Raw link to your GeoJSON file in your repository main branch
+GEOJSON_URL = "https://raw.githubusercontent.com/binrkmv/india-climate-dashboard/main/india_2001_districts.geojson"
+
+# ==============================================================================
+# 2. CACHE DATA LOADING (Optimized for Streamlit Cloud performance)
+# ==============================================================================
+@st.cache_data(show_spinner="Downloading climate matrix (15M+ rows)... Please wait.")
 def load_data():
-    return pd.read_csv(CSV_PATH)
+    # Pandas natively detects the '.zip' extension, decompresses it in memory, and parses the CSV
+    df = pd.read_csv(CSV_URL, compression='zip')
+    
+    # Ensure date component types are correct integers
+    df['year'] = df['year'].astype(int)
+    df['month'] = df['month'].astype(int)
+    df['day'] = df['day'].astype(int)
+    return df
 
 @st.cache_data
 def load_geojson():
-    with open(GEOJSON_PATH, 'r') as f:
-        return json.load(f)
+    response = requests.get(GEOJSON_URL)
+    return response.json()
 
-df = load_data()
-geojson_data = load_geojson()
+# Execute asset downloads
+try:
+    df = load_data()
+    geojson_data = load_geojson()
+except Exception as e:
+    st.error(f"Error loading remote cloud assets: {e}")
+    st.info("Please verify your GitHub URLs are public and spelled correctly.")
+    st.stop()
 
+# ==============================================================================
 # 3. DASHBOARD HEADER
+# ==============================================================================
 st.title("☀️ India Historical Climate & Weather Dashboard")
 st.write("---")
 
-# 4. LEFT SIDEBAR FILTERS
+# ==============================================================================
+# 4. LEFT SIDEBAR FILTERS (Cascading Selection Engine)
+# ==============================================================================
 st.sidebar.header("🗺️ Filter Options")
+
+# Year Filter
 available_years = sorted(df['year'].unique())
 selected_year = st.sidebar.selectbox("Select Year", available_years, index=len(available_years)-1)
 
+# Month Filter
 available_months = sorted(df['month'].unique())
 selected_month = st.sidebar.selectbox("Select Month", available_months)
 
+# Day Filter
 available_days = sorted(df['day'].unique())
 selected_day = st.sidebar.selectbox("Select Day", available_days)
 
+# State Filter
 available_states = sorted(df['ST_NAME'].unique())
 selected_state = st.sidebar.selectbox("Select State", available_states)
 
+# Dynamic District Filter (Only shows districts belonging to selected state)
 state_filtered_df = df[df['ST_NAME'] == selected_state]
 available_districts = sorted(state_filtered_df['DISTRICT'].unique())
 selected_district = st.sidebar.selectbox("Select District Focus", ["All Districts"] + list(available_districts))
 
+# ==============================================================================
 # 5. DATA QUERY EXECUTION
+# ==============================================================================
 query_df = df[
     (df['year'] == selected_year) & 
     (df['month'] == selected_month) & 
@@ -60,7 +92,7 @@ else:
     display_df = query_df
 
 # ==============================================================================
-# 6. TWO-COLUMN MAIN LAYOUT: MAP ON LEFT, CONTROLS & NOTES ON RIGHT
+# 6. WIDESCREEN MAIN LAYOUT: MAP ON LEFT (4.2), CONTROLS & NOTES ON RIGHT (1)
 # ==============================================================================
 map_column, right_panel_column = st.columns([4.2, 1])
 
@@ -90,13 +122,14 @@ with right_panel_column:
         
     st.write("---")
     
-    # 📝 USER SPECIFIED METADATA & CITATIONS NOTE
+    # 📝 Footnotes & Data Citations
     st.markdown("### ℹ️ Dashboard Info")
     st.markdown(
         """
-        **Created by:** Binay Shankar  
+        **Created by:** Binay Shankar (https://binayshankar.weebly.com/)  
         
-        **Data Sources:** * **Shapefile (Census 2001):** [Census of India / Survey of India](https://onlinemaps.surveyofindia.gov.in/)  
+        **Data Sources:**
+        * **Shapefile (Census 2001):** [Census of India / Survey of India](https://onlinemaps.surveyofindia.gov.in/)  
         * **Climate Dynamics:** [Copernicus Data Space Ecosystem (CDSE)](https://dataspace.copernicus.eu/) - ERA5 Reanalysis Dataset  
         """
     )
@@ -106,13 +139,13 @@ with map_column:
     st.subheader(f"🗺️ Geographic Heatmap: {selected_metric_label} ({selected_day}/{selected_month}/{selected_year})")
     
     if not query_df.empty:
-        # Fixed wetbulb color scale map to use valid sequential 'RdYlBu_r' 
+        # Valid sequential and diverging Plotly color palettes
         color_scales = {
             "temp_max": "Reds", 
             "temp_min": "Blues", 
             "temp_mean": "Thermal",
             "rh_mean": "YlGnBu", 
-            "wetbulb_mean": "RdYlBu_r", 
+            "wetbulb_mean": "RdYlBu_r", # Fixed from 'Blry' to valid diverging palette
             "precip_total": "Blues"
         }
         
@@ -127,12 +160,14 @@ with map_column:
             hover_data=["ST_NAME", "DISTRICT", chosen_column]
         )
         
+        # Center view and snap onto Indian geographic coordinates
         fig.update_geos(
             center=dict(lon=78.9629, lat=22.5937),
             projection_scale=6.5,
             visible=False
         )
         
+        # Maximize map canvas container size
         fig.update_layout(
             margin={"r":0,"t":0,"l":0,"b":0}, 
             height=750,
