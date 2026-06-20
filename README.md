@@ -4,7 +4,7 @@
 
 An interactive, widescreen geographic dashboard built using Streamlit and Plotly to visualize district-level historical climate variations across India. The application processes and analyzes over 15 million rows of daily historical weather metrics.
 
-👉 **[Insert Your Live Streamlit App URL Link Here Once It's Ready]**
+👉 **[[india-climate-dashboard](https://india-climate-dashboard.streamlit.app/)]**
 
 ---
 
