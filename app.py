@@ -131,7 +131,8 @@ with right_panel_column:
     st.markdown("### ℹ️ Dashboard Info")
     st.markdown(
         """
-        * **Created by:** [Binay Shankar](binayshankar.weebly.com)
+        **Created by:** 
+        * **Binay Shankar** [Webpage](binayshankar.weebly.com)
         
         **Data Sources:**
         * **Shapefile (Census 2001):** [Census of India](https://onlinemaps.surveyofindia.gov.in/)  
