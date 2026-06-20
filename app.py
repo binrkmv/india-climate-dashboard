@@ -11,11 +11,11 @@ st.set_page_config(page_title="India Climate Dashboard", layout="wide")
 # 1. CLOUD URL CONFIGURATION 
 # ==============================================================================
 
-# Direct download link to your ZIP file in GitHub Releases
+# Direct download link to your compressed data ZIP file in GitHub Releases
 CSV_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/climate_data_india_FINAL.zip"
 
-# Raw link to your GeoJSON file in your repository main branch
-GEOJSON_URL = "https://raw.githubusercontent.com/binrkmv/india-climate-dashboard/main/india_2001_districts.geojson"
+# Direct download link to your map file in GitHub Releases
+GEOJSON_URL = "https://github.com/binrkmv/india-climate-dashboard/releases/download/v1.0.0/india_2001_districts.geojson"
 
 # ==============================================================================
 # 2. CACHE DATA LOADING (Optimized for Streamlit Cloud performance)
