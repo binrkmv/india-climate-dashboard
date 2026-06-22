@@ -116,7 +116,7 @@ with right_panel_column:
     if not display_df.empty:
         # Dynamic label adjustment depending on chosen math context
         if chosen_column == 'temp_max':
-            stat_label = "Highest Temp in Era"
+            stat_label = "Highest Temp in Month"
             stat_val = display_df[chosen_column].max()
         elif chosen_column == 'temp_min':
             stat_label = "Lowest Temp in Era"
@@ -138,6 +138,7 @@ with right_panel_column:
     st.markdown(
         """
         **Created by:** [Binay Shankar](https://binayshankar.weebly.com)
+        
         **Data Sources:**
         * **Shapefile (Census 2001):** [Census of India](https://onlinemaps.surveyofindia.gov.in/)  
         * **Climate Dynamics:** [CDSE Portal](https://dataspace.copernicus.eu/) - ERA5 Dataset  
